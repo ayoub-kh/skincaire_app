@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
 import 'package:skincaire_app/model/conseil.dart';
+import 'package:skincaire_app/screens/report/report_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -118,7 +119,7 @@ class HomeScreen extends StatelessWidget {
                     width: 200,
                     margin: EdgeInsets.only(left: 16.0),
                     decoration: BoxDecoration(
-                      color: peach,
+                      color: peach.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(10.0),
                     ),
                     child: Padding(
@@ -167,7 +168,7 @@ class HomeScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: peach,
+                    color: peach.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Column(
@@ -229,7 +230,10 @@ class HomeScreen extends StatelessWidget {
         unselectedLabelStyle: TextStyle(color: brown),
         showUnselectedLabels: true,
         onTap: (index) {
-          // Handle navigation to different screens
+          if (index == 1) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ReportScreen()));
+          }
+          // Handle other navigation if needed
         },
       ),
     );
