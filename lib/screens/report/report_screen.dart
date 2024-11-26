@@ -2,7 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
+import 'package:skincaire_app/screens/camera/camera_screen.dart';
 import 'package:skincaire_app/screens/home/home_screen.dart';
+import 'package:skincaire_app/screens/report/maladie_card.dart';
+import 'package:skincaire_app/screens/report/cause_card.dart';
+import 'package:skincaire_app/screens/report/astuce_card.dart';
 //import 'package:skincaire_app/model/conseil.dart';
 
 class ReportScreen extends StatelessWidget {
@@ -12,6 +16,7 @@ class ReportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Center(child: Image.asset('assets/images/logo_horizental.png')),
         backgroundColor: peach,
       ),
@@ -20,7 +25,7 @@ class ReportScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              height: 150,
+              // height: 150,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: peach,
@@ -47,7 +52,7 @@ class ReportScreen extends StatelessWidget {
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         alignment: Alignment.centerLeft,
-                        fixedSize: Size(400, 40.0),
+                        // fixedSize: Size(400, 40.0),
                         backgroundColor: white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10.0),
@@ -94,17 +99,17 @@ class ReportScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.0),
                   GridView.count(
-                    childAspectRatio: 2.5,
+                    childAspectRatio: 1.8,
                     crossAxisCount: 2,
                     crossAxisSpacing: 16.0,
                     mainAxisSpacing: 16.0,
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     children: [
-                      _buildStatCard('Maladie 1', 0.75),
-                      _buildStatCard('Maladie 2', 0.50),
-                      _buildStatCard('Maladie 3', 0.30),
-                      _buildStatCard('Maladie 4', 0.90),
+                      MaladieWidget(title: 'Maladie 1', percentage: 0.75),
+                      MaladieWidget(title: 'Maladie 2', percentage: 0.50),
+                      MaladieWidget(title: 'Maladie 3', percentage: 0.30),
+                      MaladieWidget(title: 'Maladie 4', percentage: 0.90),
                     ],
                   ),
                 ],
@@ -131,17 +136,17 @@ class ReportScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.0),
                   GridView.count(
-                    childAspectRatio: 1.3,
+                    childAspectRatio: 1,
                     crossAxisCount: 2,
                     crossAxisSpacing: 16.0,
                     mainAxisSpacing: 16.0,
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     children: [
-                      _buildCauseCard('Cause 1', 0.60),
-                      _buildCauseCard('Cause 2', 0.45),
-                      _buildCauseCard('Cause 3', 0.80),
-                      _buildCauseCard('Cause 4', 0.55),
+                      CauseWidget(title: 'Cause 1', percentage: 0.60),
+                      CauseWidget(title: 'Cause 2', percentage: 0.45),
+                      CauseWidget(title: 'Cause 3', percentage: 0.80),
+                      CauseWidget(title: 'Cause 4', percentage: 0.55),
                     ],
                   ),
                 ],
@@ -213,16 +218,16 @@ class ReportScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.0),
                   GridView.count(
-                    childAspectRatio: 4,
+                    childAspectRatio: 2.5,
                     crossAxisCount: 1,
                     crossAxisSpacing: 16.0,
                     mainAxisSpacing: 16.0,
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     children: [
-                      _buildAstuceCard('Astuce 1'),
-                      _buildAstuceCard('Astuce 2'),
-                      _buildAstuceCard('Astuce 3'),
+                      AstuceWidget(title: 'Astuce 1'),
+                      AstuceWidget(title: 'Astuce 2'),
+                      AstuceWidget(title: 'Astuce 3'),
                     ],
                   ),
                 ],
@@ -327,141 +332,17 @@ class ReportScreen extends StatelessWidget {
           if (index == 0) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
           }
+          else if (index == 2) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => CameraScreen()));
+          }
         },
       ),
     );
   }
-
-  Widget _buildCauseCard(String title, double percentage) {
-    return Container(
-      padding: EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: peach.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: brown,
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8.0),
-          Text(
-            '${(percentage * 100).toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: brown,
-              fontSize: 14.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(
-            height: 70.0,
-            width: 70.0,
-            child: CircularProgressIndicator(
-              strokeWidth: 8.0,
-              strokeCap: StrokeCap.round,
-              value: percentage,
-              backgroundColor: peach.withOpacity(0.4),
-              valueColor: AlwaysStoppedAnimation<Color>(peach),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, double percentage) {
-    return Container(
-      padding: EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: white,
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Column(
-        // mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: brown,
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8.0),
-          Text(
-            '${(percentage * 100).toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: brown,
-              fontSize: 14.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          LinearProgressIndicator(
-            minHeight: 8.0,
-            value: percentage,
-            backgroundColor: peach.withOpacity(0.4),
-            valueColor: AlwaysStoppedAnimation<Color>(peach),
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAstuceCard(String title) {
-    return Container(
-      padding: EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: peach.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(color: brown, width: 0.5),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: brown,
-              fontSize: 18.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8.0),
-          Text(
-            'Description de l\'astuce',
-            style: TextStyle(
-              color: brown,
-              fontSize: 14.0,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: TextButton(
-              onPressed: () {
-                // Add your link action here
-              },
-              child: Text(
-                'Lire plus',
-                style: TextStyle(
-                  color: brown,
-                  fontSize: 14.0,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+
+
+
+
+

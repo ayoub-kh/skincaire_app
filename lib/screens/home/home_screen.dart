@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
 import 'package:skincaire_app/model/conseil.dart';
+import 'package:skincaire_app/screens/camera/camera_screen.dart';
 import 'package:skincaire_app/screens/report/report_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -24,6 +25,7 @@ class HomeScreen extends StatelessWidget {
     ];
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Center(child: Image.asset('assets/images/logo_horizental.png')),
         backgroundColor: peach,
       ),
@@ -32,7 +34,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-                height: 150,
+                // height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: peach,
@@ -42,7 +44,8 @@ class HomeScreen extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Container(
-                        width: 100,
+                        height: 200,
+                        width: 160,
                         decoration: BoxDecoration(
                           image: DecorationImage(
                             image: AssetImage('assets/images/hands_home.png'),
@@ -161,8 +164,7 @@ class HomeScreen extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 16.0,
                 mainAxisSpacing: 16.0,
-                childAspectRatio:
-                    1.5, // Adjusted the aspect ratio to reduce height
+                childAspectRatio: 1, // Adjusted the aspect ratio to reduce height
               ),
               itemCount: 10,
               itemBuilder: (context, index) {
@@ -174,7 +176,7 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Container(
-                        height: 120, // Reduced height
+                        height: 150, // Reduced height
                         width: 100,
                         decoration: BoxDecoration(
                           image: DecorationImage(
@@ -232,6 +234,9 @@ class HomeScreen extends StatelessWidget {
         onTap: (index) {
           if (index == 1) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ReportScreen()));
+          }
+          else if (index == 2) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => CameraScreen()));
           }
           // Handle other navigation if needed
         },
