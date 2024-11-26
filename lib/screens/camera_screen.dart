@@ -14,6 +14,7 @@ class _CameraScreenState extends State<CameraScreen> {
   XFile? _imageFile;
   bool _isCameraInitialized = false;
   final ImagePicker _picker = ImagePicker();
+  int _currentCameraIndex = 0; // Index to track the current camera
 
   @override
   void initState() {
@@ -22,11 +23,10 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    // Fetch the list of available cameras
     _cameras = await availableCameras();
     if (_cameras!.isNotEmpty) {
-      // Use the first camera available
-      _cameraController = CameraController(_cameras![0], ResolutionPreset.high);
+      _cameraController =
+          CameraController(_cameras![_currentCameraIndex], ResolutionPreset.high);
       await _cameraController!.initialize();
       setState(() {
         _isCameraInitialized = true;
@@ -34,7 +34,26 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  // Capture image using camera
+  Future<void> _switchCamera() async {
+    if (_cameras != null && _cameras!.length > 1) {
+      setState(() {
+        _isCameraInitialized = false;
+      });
+
+      // Toggle the camera index between 0 and 1 (or between available cameras)
+      _currentCameraIndex = (_currentCameraIndex + 1) % _cameras!.length;
+
+      _cameraController =
+          CameraController(_cameras![_currentCameraIndex], ResolutionPreset.high);
+      await _cameraController!.initialize();
+
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    }
+  }
+
+  // Capture image using the camera
   Future<void> _captureImage() async {
     try {
       final XFile file = await _cameraController!.takePicture();
@@ -46,9 +65,10 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  // Pick image from gallery
+  // Pick an image from the gallery
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile =
+    await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _imageFile = pickedFile;
@@ -68,12 +88,11 @@ class _CameraScreenState extends State<CameraScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background: Camera Preview or Image Display
+          // Camera Preview or Loader
           _isCameraInitialized
               ? CameraPreview(_cameraController!)
               : Center(child: CircularProgressIndicator()),
 
-          // Positioned elements
           Positioned.fill(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -100,10 +119,9 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
 
-                // Middle Dashed Frame & Instruction
+                // Middle Dashed Frame and Instruction
                 Column(
                   children: [
-                    // Dashed border box
                     Container(
                       width: 250,
                       height: 250,
@@ -111,14 +129,12 @@ class _CameraScreenState extends State<CameraScreen> {
                         border: Border.all(
                           color: Colors.orange[200]!,
                           width: 2,
-                          style: BorderStyle.solid,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DottedBorder(),
                     ),
                     SizedBox(height: 16),
-                    // Instruction text
                     Text(
                       "Positionnez la partie de peau concernée dans le cadre",
                       textAlign: TextAlign.center,
@@ -139,7 +155,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       // Cancel Button
                       IconButton(
                         onPressed: () {
-                          // Add cancel logic
+                          Navigator.pop(context);
                         },
                         icon: Icon(Icons.close, color: Colors.white, size: 30),
                       ),
@@ -153,9 +169,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       SizedBox(width: 40),
                       // Rotate Camera Button
                       IconButton(
-                        onPressed: () {
-                          // Add rotate camera logic here
-                        },
+                        onPressed: _switchCamera, // Use the switch camera function
                         icon: Icon(Icons.refresh, color: Colors.white, size: 30),
                       ),
                     ],

@@ -1,6 +1,29 @@
 import 'package:flutter/material.dart';
 
 class AboutUsPage extends StatelessWidget {
+  final List<Map<String, String>> members = [
+    {
+      'name': 'Ayoub',
+      'role': 'UI/UX Designer Développeur',
+      'image': '' // Replace with actual paths
+    },
+    {
+      'name': 'Manel',
+      'role': 'Développpeuse Full Stack',
+      'image': '' // Replace with actual paths
+    },
+    {
+      'name': 'Tarkhan',
+      'role': 'Data Scientist',
+      'image': '' // Replace with actual paths
+    },
+    {
+      'name': 'Ibrahim',
+      'role': 'Data Scientist',
+      'image': '' // Replace with actual paths
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,7 +55,7 @@ class AboutUsPage extends StatelessWidget {
               child: Column(
                 children: [
                   Image.asset(
-                    'assets/logo.png', // Replace with your logo asset
+                    'assets/images/logo.png', // Replace with your logo asset
                     height: 100,
                   ),
                   SizedBox(height: 16),
@@ -48,7 +71,7 @@ class AboutUsPage extends StatelessWidget {
             ),
             SizedBox(height: 16),
             Text(
-              'Lorem ipsum dolor sit amet consectetur. Nisl nascetur leo at varius massa tortor. Imperdiet varius nulla elementum molestie nec massa pharetra massa. Enim nibh sodales dui turpis diam. Scelerisque id id aliquam sodales. Elit enim bibendum nullam cursus. Erat bibendum et amet ut ut blandit arcu erat. Facilisis amet tristique at id sit blandit faucibus venenatis. Viverra tortor aliquet sed ac enim.',
+              'Nous facilitons l accès à une première analyse rapide des problèmes cutanés grâce à une application innovante basée sur l intelligence artificielle. En quelques clics, obtenez une probabilité des pathologies possibles à partir d une simple photo, pour mieux évaluer l urgence d une consultation médicale. Notre mission est d accompagner les utilisateurs dans un contexte de désert médical, en réduisant l attente et en priorisant les besoins.',
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.justify,
             ),
@@ -70,9 +93,14 @@ class AboutUsPage extends StatelessWidget {
                 mainAxisSpacing: 16,
                 childAspectRatio: 3 / 4,
               ),
-              itemCount: 4, // Replace with the number of members
+              itemCount: members.length, // Dynamically based on members list
               itemBuilder: (context, index) {
-                return MemberCard();
+                final member = members[index];
+                return MemberCard(
+                  name: member['name']!,
+                  role: member['role']!,
+                  image: member['image']!,
+                );
               },
             ),
           ],
@@ -83,6 +111,16 @@ class AboutUsPage extends StatelessWidget {
 }
 
 class MemberCard extends StatelessWidget {
+  final String name;
+  final String role;
+  final String image;
+
+  const MemberCard({
+    required this.name,
+    required this.role,
+    required this.image,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -103,11 +141,11 @@ class MemberCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 40,
-            backgroundImage: AssetImage('assets/member.jpg'), // Replace with your asset
+            backgroundImage: AssetImage(image), // Use the provided image path
           ),
           SizedBox(height: 8),
           Text(
-            'Ayoub',
+            name,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -115,7 +153,7 @@ class MemberCard extends StatelessWidget {
           ),
           SizedBox(height: 4),
           Text(
-            'UI/UX Designer\nDéveloppeur Mobile',
+            role,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
