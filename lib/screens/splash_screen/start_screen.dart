@@ -2,7 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
-import 'package:skincaire_app/screens/home/home_screen.dart';
+
+import '../camera_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -62,7 +63,10 @@ class StartScreen extends StatelessWidget {
                   SizedBox(height: 20.0),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CameraScreen()),
+                      );
                     },
                     child: Text('Commencer maintenant'),
                     style: ElevatedButton.styleFrom(
