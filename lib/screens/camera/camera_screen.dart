@@ -1,7 +1,11 @@
+// ignore_for_file: depend_on_referenced_packages, use_key_in_widget_constructors, library_private_types_in_public_api, avoid_print, prefer_const_constructors, unused_import
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:skincaire_app/screens/camera/results_popup.dart';
+import 'package:skincaire_app/screens/home/home_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -85,6 +89,10 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        automaticallyImplyLeading: false,
+      ),
       backgroundColor: Colors.black,
       body: Stack(
         children: [
@@ -155,7 +163,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       // Cancel Button
                       IconButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen(),));
                         },
                         icon: Icon(Icons.close, color: Colors.white, size: 30),
                       ),
@@ -180,15 +188,42 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
 
           // Display the image if captured or picked from gallery
-          if (_imageFile != null)
-            Center(
+          // if (_imageFile != null)
+          //   Center(
+          //     child: Image.file(
+          //       File(_imageFile!.path),
+          //       width: 250,
+          //       height: 250,
+          //       fit: BoxFit.cover,
+          //     ),
+          //   ),
+          if (_imageFile != null) 
+          FutureBuilder(
+            future: Future.delayed(Duration(seconds: 5)),
+            builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ResultsScreen(diagnosticResult: 'Resultssss',),
+                ),
+                // MaterialPageRoute(
+                //   builder: (context) => HomeScreen(),
+                // ),
+              );
+              });
+            }
+            return Center(
               child: Image.file(
-                File(_imageFile!.path),
-                width: 250,
-                height: 250,
-                fit: BoxFit.cover,
+              File(_imageFile!.path),
+              width: 250,
+              height: 250,
+              fit: BoxFit.cover,
               ),
-            ),
+            );
+            },
+          ),
         ],
       ),
     );
