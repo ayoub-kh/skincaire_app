@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, use_key_in_widget_constructors, prefer_const_constructors_in_immutables
+// ignore_for_file: prefer_const_constructors, unused_import, prefer_const_constructors_in_immutables, use_key_in_widget_constructors, prefer_const_literals_to_create_immutables
 
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
@@ -9,17 +9,18 @@ import 'package:skincaire_app/screens/report/cause_card.dart';
 import 'package:skincaire_app/screens/report/astuce_card.dart';
 
 class ResultsScreen extends StatelessWidget {
-  final String diagnosticResult;
+  final List<dynamic> diagnosticResult;
 
   ResultsScreen({required this.diagnosticResult});
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: peach,
         title: Text(
-          'Résultats',
+          'Resultats',
           style: TextStyle(
             color: black,
             fontSize: 20.0,
@@ -45,16 +46,16 @@ class ResultsScreen extends StatelessWidget {
           },
           backgroundColor: peach,
           shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        side: BorderSide(color: brown, width: 1.0),
+            borderRadius: BorderRadius.circular(10.0),
+            side: BorderSide(color: brown, width: 1.0),
           ),
           child: Text(
-        'Terminer',
-        style: TextStyle(
-          color: brown,
-          fontSize: 16.0,
-          fontWeight: FontWeight.bold,
-        ),
+            'Terminer',
+            style: TextStyle(
+              color: brown,
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -84,19 +85,23 @@ class ResultsScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 8.0),
-                    GridView.count(
-                      childAspectRatio: 1.5,
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
+                    GridView.builder(
+                      itemCount: diagnosticResult.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 1.2,
+                      ),
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
-                      children: [
-                        MaladieWidget(title: 'Maladie 1', percentage: 0.75),
-                        MaladieWidget(title: 'Maladie 2', percentage: 0.50),
-                        MaladieWidget(title: 'Maladie 3', percentage: 0.30),
-                        MaladieWidget(title: 'Maladie 4', percentage: 0.90),
-                      ],
+                      itemBuilder: (context, index) {
+                        var result = diagnosticResult[index];
+                        return MaladieWidget(
+                            title: result['label'].split('-')[1],
+                          percentage: result['confidence'],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -219,7 +224,7 @@ class ResultsScreen extends StatelessWidget {
 }
 
 // Function to show the results popup
-void showResultsPopup(BuildContext context, String result) {
+void showResultsPopup(BuildContext context, List<dynamic> result) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
