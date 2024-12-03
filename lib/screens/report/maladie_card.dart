@@ -26,12 +26,14 @@ class MaladieWidget extends StatelessWidget {
         // mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: brown,
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
+          Flexible(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: brown,
+                fontSize: 20.0,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           SizedBox(height: 8.0),

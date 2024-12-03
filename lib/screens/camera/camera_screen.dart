@@ -1,4 +1,4 @@
-// ignore_for_file: depend_on_referenced_packages, use_key_in_widget_constructors, library_private_types_in_public_api, avoid_print, prefer_const_constructors, unused_import
+// ignore_for_file: depend_on_referenced_packages, use_key_in_widget_constructors, library_private_types_in_public_api, avoid_print, prefer_const_constructors, unused_import, unused_field, unnecessary_null_comparison
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -6,6 +6,8 @@ import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:skincaire_app/screens/camera/results_popup.dart';
 import 'package:skincaire_app/screens/home/home_screen.dart';
+import 'package:tflite_v2/tflite_v2.dart';
+
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -19,11 +21,14 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isCameraInitialized = false;
   final ImagePicker _picker = ImagePicker();
   int _currentCameraIndex = 0; // Index to track the current camera
+  String? _result; // For storing the result of prediction
+  List<dynamic> _output = [];
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    loadModel();
   }
 
   Future<void> _initializeCamera() async {
@@ -64,6 +69,7 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _imageFile = file;
       });
+      classifyImage(file.path);
     } catch (e) {
       print('Error capturing image: $e');
     }
@@ -77,12 +83,43 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _imageFile = pickedFile;
       });
+      classifyImage(pickedFile.path);
     }
+  }
+
+  Future<void> loadModel() async {
+    String? res = await Tflite.loadModel(
+      model: "assets/model_test.tflite",
+      labels: "assets/labels.txt",
+    );
+    print("Model loaded: $res");
+  }
+
+  Future<void> classifyImage(String imagePath) async {
+    var output = await Tflite.runModelOnImage(
+      path: imagePath,
+      imageMean: 127.5,
+      imageStd: 127.5,
+      numResults: 4,
+      threshold: 0.0,
+    );
+
+    print("Output: $output");
+
+    _output = output!;
+    print("Output: $_output");
+
+    setState(() {
+      _result = output != null && output.isNotEmpty
+          ? output.map((e) => "${e['label']} (${(e['confidence'] * 100).toStringAsFixed(2)}%)").join("\n")
+          : "Aucun résultat trouvé.";
+    });
   }
 
   @override
   void dispose() {
     _cameraController?.dispose();
+    Tflite.close();
     super.dispose();
   }
 
@@ -199,14 +236,14 @@ class _CameraScreenState extends State<CameraScreen> {
           //   ),
           if (_imageFile != null) 
           FutureBuilder(
-            future: Future.delayed(Duration(seconds: 5)),
+            future: Future.delayed(Duration(seconds: 10)),
             builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ResultsScreen(diagnosticResult: 'Resultssss',),
+                  builder: (context) => ResultsScreen(diagnosticResult: _output,),
                 ),
                 // MaterialPageRoute(
                 //   builder: (context) => HomeScreen(),
