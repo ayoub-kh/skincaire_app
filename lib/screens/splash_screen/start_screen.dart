@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
 
-import '../camera_screen.dart';
+import '../camera/camera_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
