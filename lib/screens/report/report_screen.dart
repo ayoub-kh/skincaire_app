@@ -143,10 +143,7 @@ class ReportScreen extends StatelessWidget {
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     children: [
-                      CauseWidget(title: 'Cause 1', percentage: 0.60),
-                      CauseWidget(title: 'Cause 2', percentage: 0.45),
-                      CauseWidget(title: 'Cause 3', percentage: 0.80),
-                      CauseWidget(title: 'Cause 4', percentage: 0.55),
+
                     ],
                   ),
                 ],
