@@ -1,5 +1,4 @@
-// ignore_for_file: prefer_const_constructors, unused_import, prefer_const_constructors_in_immutables, use_key_in_widget_constructors, prefer_const_literals_to_create_immutables
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:skincaire_app/constants/constants.dart';
 import 'package:skincaire_app/screens/camera/camera_screen.dart';
@@ -7,15 +6,137 @@ import 'package:skincaire_app/screens/home/home_screen.dart';
 import 'package:skincaire_app/screens/report/maladie_card.dart';
 import 'package:skincaire_app/screens/report/cause_card.dart';
 import 'package:skincaire_app/screens/report/astuce_card.dart';
+import 'package:http/http.dart' as http;
 
-class ResultsScreen extends StatelessWidget {
-  final List<dynamic> diagnosticResult;
+class ResultsScreen extends StatefulWidget {
+  final int imageId;
 
-  ResultsScreen({required this.diagnosticResult});
+  ResultsScreen({required this.imageId});
+
+  @override
+  _ResultsScreenState createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  List<dynamic> diagnosticResult = [];
+  bool isLoading = true;
+  List<String> causesList = []; // List to store fetched causes
+  List<String> treatmentList = []; // List to store fetched treatment
+  String conditionDescription = ''; // Variable to store fetched condition description
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPredictions();
+    fetchCauses();
+    fetchTreatment();
+    fetchDescription();
+  }
+
+  Future<void> fetchPredictions() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:3000/get-predictions/${widget.imageId}'));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> results = jsonDecode(response.body);
+
+        // Ensure all confidence values are treated as doubles
+        for (var result in results) {
+          if (result['probability_score'] is int) {
+            result['probability_score'] = (result['probability_score'] as int).toDouble();
+          }
+        }
+
+        // Sort by probability_score in descending order
+        results.sort((a, b) => b['probability_score'].compareTo(a['probability_score']));
+
+        // Take the top 4 predictions
+        final diagnosticResults = results.take(4).toList();
+
+        setState(() {
+          diagnosticResult = diagnosticResults;
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to fetch predictions: ${response.statusCode}');
+      }
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+      });
+      print('Error fetching predictions: $error');
+    }
+  }
+
+  Future<void> fetchCauses() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:3000/get-causes/${widget.imageId}'));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> result = jsonDecode(response.body);
+        String causesString = result['causes'];
+
+        // Split the causes string by commas to create a list
+        setState(() {
+          causesList = causesString.split(','); // Update causesList
+          print('Causes: $causesList');
+        });
+      } else {
+        throw Exception('Failed to fetch causes: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('Error fetching causes: $error');
+    }
+  }
+
+  Future<void> fetchTreatment() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:3000/get-treatment/${widget.imageId}'));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> result = jsonDecode(response.body);
+        String treatmentString = result['treatment'];
+
+        setState(() {
+          treatmentList = treatmentString.split(','); // Split the treatment string by commas
+          print('Treatment: $treatmentList');
+        });
+      } else {
+        throw Exception('Failed to fetch treatment: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('Error fetching treatment: $error');
+    }
+  }
+
+  Future<void> fetchDescription() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:3000/get-condition-description/${widget.imageId}'));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> result = jsonDecode(response.body);
+        String description = result['description'];
+
+        // Set the state with the fetched description
+        setState(() {
+          conditionDescription = description; // Update your conditionDescription variable
+          print('Condition Description: $conditionDescription');
+        });
+      } else {
+        throw Exception('Failed to fetch condition description: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('Error fetching condition description: $error');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: peach,
@@ -31,7 +152,7 @@ class ResultsScreen extends StatelessWidget {
         leading: IconButton(
           icon: Icon(Icons.close, color: black),
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => CameraScreen(),));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => CameraScreen()));
           },
         ),
       ),
@@ -42,7 +163,7 @@ class ResultsScreen extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 24.0),
         child: FloatingActionButton(
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen(),));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen()));
           },
           backgroundColor: peach,
           shape: RoundedRectangleBorder(
@@ -60,7 +181,9 @@ class ResultsScreen extends StatelessWidget {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: SingleChildScrollView(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -98,8 +221,8 @@ class ResultsScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         var result = diagnosticResult[index];
                         return MaladieWidget(
-                            title: result['label'].split('-')[1],
-                          percentage: result['confidence'],
+                          title: result['condition_name'],
+                          percentage: result['probability_score'],
                         );
                       },
                     ),
@@ -121,19 +244,25 @@ class ResultsScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 8.0),
-                    GridView.count(
-                      childAspectRatio: 0.9,
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
+                    // Show causes dynamically
+                    causesList.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : GridView.builder(
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
-                      children: [
-                        CauseWidget(title: 'Cause 1', percentage: 0.60),
-                        CauseWidget(title: 'Cause 2', percentage: 0.45),
-                        CauseWidget(title: 'Cause 3', percentage: 0.80),
-                        CauseWidget(title: 'Cause 4', percentage: 0.55),
-                      ],
+                      itemCount: causesList.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 0.9,
+                      ),
+                      itemBuilder: (context, index) {
+                        return CauseWidget(
+                          title: causesList[index],
+
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -158,7 +287,9 @@ class ResultsScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8.0),
                     Text(
-                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum.',
+                      conditionDescription.isEmpty
+                          ? 'Loading description...'  // This is a placeholder while the description is being fetched
+                          : conditionDescription,     // This displays the fetched description
                       style: TextStyle(
                         color: Colors.grey[50],
                         fontSize: 14.0,
@@ -199,18 +330,24 @@ class ResultsScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 8.0),
-                    GridView.count(
-                      childAspectRatio: 2.5,
-                      crossAxisCount: 1,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
+                    // Show treatment dynamically
+                    treatmentList.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : GridView.builder(
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
-                      children: [
-                        AstuceWidget(title: 'Astuce 1'),
-                        AstuceWidget(title: 'Astuce 2'),
-                        AstuceWidget(title: 'Astuce 3'),
-                      ],
+                      itemCount: treatmentList.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 1,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 2.5,
+                      ),
+                      itemBuilder: (context, index) {
+                        return AstuceWidget(
+                          title: treatmentList[index],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -224,11 +361,11 @@ class ResultsScreen extends StatelessWidget {
 }
 
 // Function to show the results popup
-void showResultsPopup(BuildContext context, List<dynamic> result) {
+void showResultsPopup(BuildContext context, int imageId) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => ResultsScreen(diagnosticResult: result),
+    builder: (context) => ResultsScreen(imageId: imageId),
   );
 }

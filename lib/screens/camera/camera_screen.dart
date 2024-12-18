@@ -1,10 +1,11 @@
-// Flutter imports remain unchanged
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:skincaire_app/screens/camera/results_popup.dart';
+import 'package:tflite_v2/tflite_v2.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -18,11 +19,15 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isCameraInitialized = false;
   final ImagePicker _picker = ImagePicker();
   int _currentCameraIndex = 0;
+  String? _result; // For storing the result of prediction
+  List<dynamic> output = [];
+  int imageId = -1;
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    loadModel();
   }
 
   // Initialize the camera
@@ -81,6 +86,7 @@ class _CameraScreenState extends State<CameraScreen> {
         setState(() {
           _imageFile = file;
         });
+        classifyImage(file.path);
         print('Image captured: ${file.path}');
       } catch (e) {
         print('Error capturing image: $e');
@@ -96,64 +102,128 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _imageFile = pickedFile;
       });
+      classifyImage(pickedFile.path);
     }
   }
 
-  // Upload the captured or picked image to the server
-  Future<void> _uploadImage() async {
-    if (_imageFile != null) {
-      try {
-        // Prepare the request
-        final uri = Uri.parse('http://10.0.2.2:3000/upload-image');
-        print('Uploading image to $uri');
-        var request = http.MultipartRequest('POST', uri);
+  Future<void> loadModel() async {
+    String? res = await Tflite.loadModel(
+      model: "assets/model_test.tflite",
+      labels: "assets/labels.txt",
+    );
+    print("Model loaded: $res");
+  }
 
-        // Attach the image file
-        request.files.add(
-            await http.MultipartFile.fromPath('image', _imageFile!.path));
+  Future<void> classifyImage(String imagePath) async {
+    try {
+      // First, upload the image to the server
+      final uri = Uri.parse('http://10.0.2.2:3000/upload-image');
+      print('Uploading image to $uri');
+      var request = http.MultipartRequest('POST', uri);
 
-        // Send the request
-        var response = await request.send();
-        print('Response: $response');
+      // Attach the image file
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+      // Send the request
+      var response = await request.send();
+      print('Response: $response');
+
+      if (response.statusCode == 200) {
+        final responseBody = await http.Response.fromStream(response);
+        print('Response body: ${responseBody.body}');
+        final data = jsonDecode(responseBody.body);
+
+        // Ensure 'imageId' is returned by the server
+        if (data['imageId'] == null) {
+          print('Error: Image ID is null');
+          return;
+        }
+
+        imageId = data['imageId'];  // Extract imageId from the response
+        print('Image uploaded successfully with Image ID: $imageId');
+
+        // Now run image classification after image upload
+        var output = await Tflite.runModelOnImage(
+          path: imagePath,
+          imageMean: 127.5,
+          imageStd: 127.5,
+          numResults: 4,
+          threshold: 0.0,
+        );
+
+        print("Output: $output");
+
+        if (output == null || output.isEmpty) {
+          print('No predictions found');
+          return;
+        }
+
+        setState(() {
+          _result = output != null && output.isNotEmpty
+              ? output.map((e) => "${e['label']} (${(e['confidence'] * 100).toStringAsFixed(2)}%)").join("\n")
+              : "Aucun résultat trouvé.";
+        });
+
+        // Send predictions to the backend
+        if (imageId != null && output.isNotEmpty) {
+          sendPrediction(imageId, output);
+        } else {
+          print('Failed to get valid imageId or predictions');
+        }
+
+      } else {
+        print('Failed to upload image, status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error during image upload and classification: $e');
+    }
+  }
+
+  Future<void> sendPrediction(int imageId, List<dynamic> predictions) async {
+    try {
+      for (var prediction in predictions) {
+        // Extract the label from the prediction and use it as condition_name
+        String conditionName = prediction['label'];
+
+        // Fetch the condition_id based on the condition_name
+        final url = Uri.parse('http://10.0.2.2:3000/get-condition-id/$conditionName');
+        final response = await http.get(url);
 
         if (response.statusCode == 200) {
-          // Get response body and parse the URL from response
-          final responseBody = await http.Response.fromStream(response);
-          print('Response body: ${responseBody.body}');
-          final data = jsonDecode(responseBody.body);
-          String imageUrl = data['imageUrl'];
+          // Parse the response to get the condition_id
+          final data = jsonDecode(response.body);
+          int conditionId = data['conditionId'];
 
-          // Log success
-          print('Image uploaded successfully, URL: $imageUrl');
-
-          // You may show the URL to the user or take further action
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Image uploaded successfully!'),
-            ),
+          // Send the prediction to save it in the database
+          final savePredictionUrl = Uri.parse('http://10.0.2.2:3000/save-prediction');
+          final saveResponse = await http.post(
+            savePredictionUrl,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              'image_id': imageId,
+              'condition_id': conditionId, // Send the valid condition_id
+              'probability_score': prediction['confidence'],
+            }),
           );
+
+          if (saveResponse.statusCode == 200) {
+            print('Prediction for $conditionName saved successfully');
+          } else {
+            print('Failed to save prediction for $conditionName: ${saveResponse.body}');
+          }
         } else {
-          print('Failed to upload image, status code: ${response.statusCode}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Image upload failed. Try again.'),
-            ),
-          );
+          print('Error fetching condition_id for $conditionName: ${response.body}');
         }
-      } catch (e) {
-        print('Error uploading image: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error uploading image.'),
-          ),
-        );
       }
-    } else {
-      print('No image selected to upload.');
+
+      // After all predictions are processed, notify the user
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please capture or select an image first.'),
-        ),
+        SnackBar(content: Text('Predictions saved successfully')),
+      );
+    } catch (e) {
+      print('Error sending predictions: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending predictions')),
       );
     }
   }
@@ -161,6 +231,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _cameraController?.dispose();
+    Tflite.close();
     super.dispose();
   }
 
@@ -237,7 +308,6 @@ class _CameraScreenState extends State<CameraScreen> {
                       FloatingActionButton(
                         onPressed: () async {
                           await _captureImage();
-                          await _uploadImage(); // Upload image after capture
                         },
                         backgroundColor: Colors.orange[200],
                         child: Icon(Icons.camera_alt, color: Colors.black),
@@ -254,13 +324,28 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ),
           if (_imageFile != null)
-            Center(
-              child: Image.file(
-                File(_imageFile!.path),
-                width: 250,
-                height: 250,
-                fit: BoxFit.cover,
-              ),
+            FutureBuilder(
+              future: Future.delayed(Duration(seconds: 10)),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ResultsScreen(imageId: imageId),
+                      ),
+                    );
+                  });
+                }
+                return Center(
+                  child: Image.file(
+                    File(_imageFile!.path),
+                    width: 250,
+                    height: 250,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
             ),
         ],
       ),
