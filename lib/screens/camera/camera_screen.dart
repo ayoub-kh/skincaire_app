@@ -1,13 +1,11 @@
-// ignore_for_file: depend_on_referenced_packages, use_key_in_widget_constructors, library_private_types_in_public_api, avoid_print, prefer_const_constructors, unused_import, unused_field, unnecessary_null_comparison
-
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:skincaire_app/screens/camera/results_popup.dart';
-import 'package:skincaire_app/screens/home/home_screen.dart';
 import 'package:tflite_v2/tflite_v2.dart';
-
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -20,9 +18,10 @@ class _CameraScreenState extends State<CameraScreen> {
   XFile? _imageFile;
   bool _isCameraInitialized = false;
   final ImagePicker _picker = ImagePicker();
-  int _currentCameraIndex = 0; // Index to track the current camera
+  int _currentCameraIndex = 0;
   String? _result; // For storing the result of prediction
-  List<dynamic> _output = [];
+  List<dynamic> output = [];
+  int imageId = -1;
 
   @override
   void initState() {
@@ -31,47 +30,67 @@ class _CameraScreenState extends State<CameraScreen> {
     loadModel();
   }
 
+  // Initialize the camera
   Future<void> _initializeCamera() async {
-    _cameras = await availableCameras();
-    if (_cameras!.isNotEmpty) {
-      _cameraController =
-          CameraController(_cameras![_currentCameraIndex], ResolutionPreset.high);
-      await _cameraController!.initialize();
-      setState(() {
-        _isCameraInitialized = true;
-      });
+    try {
+      _cameras = await availableCameras();
+      if (_cameras!.isNotEmpty) {
+        _cameraController = CameraController(
+            _cameras![_currentCameraIndex], ResolutionPreset.high);
+        await _cameraController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = true;
+          });
+        }
+        print('Camera initialized');
+      }
+    } catch (e) {
+      print('Error initializing camera: $e');
     }
   }
 
+  // Switch between the front and back camera
   Future<void> _switchCamera() async {
     if (_cameras != null && _cameras!.length > 1) {
       setState(() {
         _isCameraInitialized = false;
       });
 
-      // Toggle the camera index between 0 and 1 (or between available cameras)
+      // Dispose the current camera controller before switching
+      await _cameraController?.dispose();
+
       _currentCameraIndex = (_currentCameraIndex + 1) % _cameras!.length;
 
-      _cameraController =
-          CameraController(_cameras![_currentCameraIndex], ResolutionPreset.high);
-      await _cameraController!.initialize();
+      _cameraController = CameraController(
+          _cameras![_currentCameraIndex], ResolutionPreset.high);
 
-      setState(() {
-        _isCameraInitialized = true;
-      });
+      try {
+        await _cameraController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = true;
+          });
+        }
+      } catch (e) {
+        print('Error initializing camera: $e');
+      }
     }
   }
 
   // Capture image using the camera
   Future<void> _captureImage() async {
-    try {
-      final XFile file = await _cameraController!.takePicture();
-      setState(() {
-        _imageFile = file;
-      });
-      classifyImage(file.path);
-    } catch (e) {
-      print('Error capturing image: $e');
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        final XFile file = await _cameraController!.takePicture();
+        setState(() {
+          _imageFile = file;
+        });
+        classifyImage(file.path);
+        print('Image captured: ${file.path}');
+      } catch (e) {
+        print('Error capturing image: $e');
+      }
     }
   }
 
@@ -96,24 +115,117 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> classifyImage(String imagePath) async {
-    var output = await Tflite.runModelOnImage(
-      path: imagePath,
-      imageMean: 127.5,
-      imageStd: 127.5,
-      numResults: 4,
-      threshold: 0.0,
-    );
+    try {
+      // First, upload the image to the server
+      final uri = Uri.parse('http://10.0.2.2:3000/upload-image');
+      print('Uploading image to $uri');
+      var request = http.MultipartRequest('POST', uri);
 
-    print("Output: $output");
+      // Attach the image file
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
 
-    _output = output!;
-    print("Output: $_output");
+      // Send the request
+      var response = await request.send();
+      print('Response: $response');
 
-    setState(() {
-      _result = output != null && output.isNotEmpty
-          ? output.map((e) => "${e['label']} (${(e['confidence'] * 100).toStringAsFixed(2)}%)").join("\n")
-          : "Aucun résultat trouvé.";
-    });
+      if (response.statusCode == 200) {
+        final responseBody = await http.Response.fromStream(response);
+        print('Response body: ${responseBody.body}');
+        final data = jsonDecode(responseBody.body);
+
+        // Ensure 'imageId' is returned by the server
+        if (data['imageId'] == null) {
+          print('Error: Image ID is null');
+          return;
+        }
+
+        imageId = data['imageId'];  // Extract imageId from the response
+        print('Image uploaded successfully with Image ID: $imageId');
+
+        // Now run image classification after image upload
+        var output = await Tflite.runModelOnImage(
+          path: imagePath,
+          imageMean: 127.5,
+          imageStd: 127.5,
+          numResults: 4,
+          threshold: 0.0,
+        );
+
+        print("Output: $output");
+
+        if (output == null || output.isEmpty) {
+          print('No predictions found');
+          return;
+        }
+
+        setState(() {
+          _result = output != null && output.isNotEmpty
+              ? output.map((e) => "${e['label']} (${(e['confidence'] * 100).toStringAsFixed(2)}%)").join("\n")
+              : "Aucun résultat trouvé.";
+        });
+
+        // Send predictions to the backend
+        if (imageId != null && output.isNotEmpty) {
+          sendPrediction(imageId, output);
+        } else {
+          print('Failed to get valid imageId or predictions');
+        }
+
+      } else {
+        print('Failed to upload image, status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error during image upload and classification: $e');
+    }
+  }
+
+  Future<void> sendPrediction(int imageId, List<dynamic> predictions) async {
+    try {
+      for (var prediction in predictions) {
+        // Extract the label from the prediction and use it as condition_name
+        String conditionName = prediction['label'];
+
+        // Fetch the condition_id based on the condition_name
+        final url = Uri.parse('http://10.0.2.2:3000/get-condition-id/$conditionName');
+        final response = await http.get(url);
+
+        if (response.statusCode == 200) {
+          // Parse the response to get the condition_id
+          final data = jsonDecode(response.body);
+          int conditionId = data['conditionId'];
+
+          // Send the prediction to save it in the database
+          final savePredictionUrl = Uri.parse('http://10.0.2.2:3000/save-prediction');
+          final saveResponse = await http.post(
+            savePredictionUrl,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              'image_id': imageId,
+              'condition_id': conditionId, // Send the valid condition_id
+              'probability_score': prediction['confidence'],
+            }),
+          );
+
+          if (saveResponse.statusCode == 200) {
+            print('Prediction for $conditionName saved successfully');
+          } else {
+            print('Failed to save prediction for $conditionName: ${saveResponse.body}');
+          }
+        } else {
+          print('Error fetching condition_id for $conditionName: ${response.body}');
+        }
+      }
+
+      // After all predictions are processed, notify the user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Predictions saved successfully')),
+      );
+    } catch (e) {
+      print('Error sending predictions: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending predictions')),
+      );
+    }
   }
 
   @override
@@ -126,23 +238,16 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        automaticallyImplyLeading: false,
-      ),
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera Preview or Loader
           _isCameraInitialized
               ? CameraPreview(_cameraController!)
               : Center(child: CircularProgressIndicator()),
-
           Positioned.fill(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top Download Button
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Align(
@@ -163,8 +268,6 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                   ),
                 ),
-
-                // Middle Dashed Frame and Instruction
                 Column(
                   children: [
                     Container(
@@ -190,31 +293,28 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                   ],
                 ),
-
-                // Bottom Buttons
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Cancel Button
                       IconButton(
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen(),));
+                          Navigator.pop(context);
                         },
                         icon: Icon(Icons.close, color: Colors.white, size: 30),
                       ),
                       SizedBox(width: 40),
-                      // Camera Button
                       FloatingActionButton(
-                        onPressed: _captureImage,
+                        onPressed: () async {
+                          await _captureImage();
+                        },
                         backgroundColor: Colors.orange[200],
                         child: Icon(Icons.camera_alt, color: Colors.black),
                       ),
                       SizedBox(width: 40),
-                      // Rotate Camera Button
                       IconButton(
-                        onPressed: _switchCamera, // Use the switch camera function
+                        onPressed: _switchCamera,
                         icon: Icon(Icons.refresh, color: Colors.white, size: 30),
                       ),
                     ],
@@ -223,51 +323,37 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
           ),
-
-          // Display the image if captured or picked from gallery
-          // if (_imageFile != null)
-          //   Center(
-          //     child: Image.file(
-          //       File(_imageFile!.path),
-          //       width: 250,
-          //       height: 250,
-          //       fit: BoxFit.cover,
-          //     ),
-          //   ),
-          if (_imageFile != null) 
-          FutureBuilder(
-            future: Future.delayed(Duration(seconds: 10)),
-            builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ResultsScreen(diagnosticResult: _output,),
-                ),
-                // MaterialPageRoute(
-                //   builder: (context) => HomeScreen(),
-                // ),
-              );
-              });
-            }
-            return Center(
-              child: Image.file(
-              File(_imageFile!.path),
-              width: 250,
-              height: 250,
-              fit: BoxFit.cover,
-              ),
-            );
-            },
-          ),
+          if (_imageFile != null)
+            FutureBuilder(
+              future: Future.delayed(Duration(seconds: 10)),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ResultsScreen(imageId: imageId),
+                      ),
+                    );
+                  });
+                }
+                return Center(
+                  child: Image.file(
+                    File(_imageFile!.path),
+                    width: 250,
+                    height: 250,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 }
 
-// Custom Dashed Border (Optional Widget)
+// Custom Dashed Border
 class DottedBorder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
