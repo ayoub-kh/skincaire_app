@@ -98,7 +98,7 @@ class ResultsScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         var result = diagnosticResult[index];
                         return MaladieWidget(
-                            title: result['label'].split('-')[1],
+                            title: result['label'],
                           percentage: result['confidence'],
                         );
                       },
