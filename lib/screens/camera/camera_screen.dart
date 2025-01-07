@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field, unnecessary_null_comparison, depend_on_referenced_packages, use_key_in_widget_constructors, library_private_types_in_public_api, avoid_print, use_build_context_synchronously, prefer_const_constructors
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
